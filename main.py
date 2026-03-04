@@ -8,19 +8,25 @@ import urllib
 from src.api import postToESUnclassified
 from src.parsers.video_parser import TiktokPost
 from src.db.mongo import MongoDB
-from src.crawler_keywords import CrawlerKeyword
+# from src.crawler_keywords import CrawlerKeyword
 from src.config.logging import setup_logging
 import logging
 from collections import defaultdict
 
-from src.utils import delay
+# from src.utils import delay
+from src.utils.scroll_utils import human_scroll
+from src.utils.delay_utils import delay
+from src.utils.browser_actions import random_view_video
+from src.utils.sleep_manager import SleepManager
+
+
 setup_logging()
 logger = logging.getLogger(__name__)
 
 from src.config.settings import settings
 
 TIKTOK_URL = "https://www.tiktok.com"
-KEYWORDS = ["Phường Tương Mai", "Xã Xuân Giang", "Hà Nội"]
+KEYWORDS = ["Xã Xuân Giang", "Hà Nội"]
 
 API_FILTERS = [
 	"/api/search/item/full/",
@@ -30,47 +36,6 @@ SEARCH_API = "/api/search/item/full/"
 
 db = MongoDB.get_db()
 bot_config = db.tiktok_bot_configs
-
-
-async def human_scroll(page, locator, times: int = 1):
-		"""
-		Scroll giống hành vi người dùng thật
-		:param page: playwright page
-		:param locator: locator video items
-		:param times: số lần scroll
-		"""
-		for i in range(times):
-			count = await locator.count()
-			if count == 0:
-				break
-
-			# Move mouse nhẹ (giống người)
-			await page.mouse.move(
-				random.randint(200, 600),
-				random.randint(200, 500)
-			)
-
-			# Scroll tới item cuối
-			await locator.nth(count - 1).scroll_into_view_if_needed()
-
-			# dừng xem ngắn
-			await page.wait_for_timeout(random.randint(800, 1500))
-
-			# 🔄 20% scroll ngược lại
-			if random.random() < 0.2:
-				await page.mouse.wheel(0, -random.randint(150, 300))
-				await page.wait_for_timeout(random.randint(200, 400))
-
-			# 😵‍💫 10% đứng im rất lâu (lướt mà quên scroll)
-			if random.random() < 0.1:
-				long_pause = random.randint(6000, 12000)
-				await page.wait_for_timeout(long_pause)
-
-			# Người dùng thường dừng xem
-			await page.wait_for_timeout(random.randint(700, 1200))
-
-async def human_delay(min_ms=800, max_ms=1500):
-	await asyncio.sleep(random.uniform(min_ms / 1000, max_ms / 1000))
 
 async def run_with_gpm():
 	
@@ -152,46 +117,6 @@ async def run_test():
 		context = await browser.new_context(storage_state="tiktok_profile.json")
 
 		await crawl_tiktok_search_1(browser, context, KEYWORDS, API_FILTERS)
-
-
-async def random_view_video(page):
-    locator = page.locator("[id^='grid-item-container-']")
-    count = await locator.count()
-
-    if count == 0:
-        return
-
-    if random.random() < 0.5:
-        index = random.randint(0, min(count - 1, 5))
-        video = locator.nth(index)
-
-        await page.wait_for_timeout(random.randint(500, 1500))
-
-        # move chuột trước hover
-        await page.mouse.move(
-            random.randint(200, 800),
-            random.randint(200, 500),
-            steps=random.randint(5, 20)
-        )
-
-        await video.hover()
-        await page.wait_for_timeout(random.randint(800, 2000))
-
-        await video.click()
-
-        # Xem 10–30 giây
-        watch_time = random.randint(10000, 30000)
-        await page.wait_for_timeout(watch_time)
-
-        # 20% khả năng scroll xuống xem comment
-        if random.random() < 0.2:
-            await page.mouse.wheel(0, random.randint(300, 700))
-            await page.wait_for_timeout(random.randint(2000, 4000))
-
-        await page.go_back()
-        await page.wait_for_load_state("domcontentloaded")
-        await page.wait_for_timeout(random.randint(2000, 4000))
-
 
 async def crawl_tiktok_search_1(browser, context, KEYWORDS, API_FILTERS):
 
@@ -326,7 +251,7 @@ async def crawl_tiktok_search_1(browser, context, KEYWORDS, API_FILTERS):
 		logger.info("🛑 Closing page for rest period")
 		await page.close()
 
-		rest_time = random.randint(180, 360)
+		rest_time = random.randint(300, 600)
 		logger.info(f"😴 Resting {rest_time}s before next session")
 		await asyncio.sleep(rest_time)
 
@@ -334,75 +259,14 @@ async def crawl_tiktok_search_1(browser, context, KEYWORDS, API_FILTERS):
 
 	logger.info("🎉 Done crawling all keywords")
 
-
-# lưu cấu hình ngủ trong ngày
-sleep_config = {
-	"sleep_start": None,
-	"sleep_end": None,
-	"date": None
-}
-
-def generate_today_sleep_time():
-	today = datetime.now().date()
-
-	# random giờ ngủ 23:00 – 00:30
-	sleep_hour = random.choice([23, 0])
-	sleep_minute = random.randint(0, 59) if sleep_hour == 23 else random.randint(0, 30)
-
-	# random giờ thức 05:30 – 06:30
-	wake_hour = 5 if random.random() < 0.5 else 6
-	wake_minute = random.randint(30, 59) if wake_hour == 5 else random.randint(0, 30)
-
-	sleep_start = dtime(sleep_hour, sleep_minute)
-	sleep_end = dtime(wake_hour, wake_minute)
-
-	sleep_config["sleep_start"] = sleep_start
-	sleep_config["sleep_end"] = sleep_end
-	sleep_config["date"] = today
-
-	logger.info(f"🌙 Sleep window today: {sleep_start} → {sleep_end}")
-
-def is_sleep_time():
-	now = datetime.now()
-
-	if sleep_config["date"] != now.date():
-		generate_today_sleep_time()
-
-	start = sleep_config["sleep_start"]
-	end = sleep_config["sleep_end"]
-	current = now.time()
-
-	# xử lý trường hợp ngủ qua ngày (23h → 6h)
-	if start > end:
-		return current >= start or current < end
-	else:
-		return start <= current < end
-
-async def sleep_until_wakeup():
-	now = datetime.now()
-	wake_time = sleep_config["sleep_end"]
-
-	wake_datetime = now.replace(
-		hour=wake_time.hour,
-		minute=wake_time.minute,
-		second=0,
-		microsecond=0
-	)
-
-	if now.time() >= wake_time:
-		wake_datetime += timedelta(days=1)
-
-	seconds = (wake_datetime - now).total_seconds()
-	logger.info(f"😴 Sleeping {seconds/3600:.2f} hours...")
-	await asyncio.sleep(seconds)
-
 async def schedule():
 	MINUTE = settings.DELAY
 	INTERVAL = MINUTE * 60
 	while True:
 		try:
-			if is_sleep_time():
-				await sleep_until_wakeup()
+			sleep_manager = SleepManager(logger)
+			if sleep_manager.is_sleep_time():
+				await sleep_manager.sleep_until_wakeup()
 				continue
 			
 			if settings.DEBUG:
@@ -415,7 +279,6 @@ async def schedule():
 			logger.exception("Unhandled exception in run()")
 
 		await asyncio.sleep(INTERVAL)
-
 
 if __name__ == "__main__":
 	asyncio.run(schedule())
