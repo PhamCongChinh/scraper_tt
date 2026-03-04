@@ -140,7 +140,7 @@ async def run_with_gpm():
 				keywords.append(doc["keyword"])
 
 			await delay(1000, 2000)
-			await crawl_tiktok_search_1(context, keywords, API_FILTERS)
+			await crawl_tiktok_search_1(browser, context, keywords, API_FILTERS)
 
 	except Exception as e:
 		logger.exception(f"Error in run_with_gpm(): {e}")
@@ -163,7 +163,6 @@ async def run_with_gpm():
 async def run_test():
 	async with async_playwright() as p:
 		chrome_path = "C:/Program Files/Google/Chrome/Application/chrome.exe"  # đường dẫn Chrome trên Windows
-
 		browser = await p.chromium.launch(
 			headless=False,
 			executable_path=chrome_path,
@@ -172,172 +171,60 @@ async def run_test():
 		context = await browser.new_context(storage_state="tiktok_profile.json")
 
 		await context.route("**/*", block_resources)
-
-		page = await context.new_page()
-
-		# await delay(800, 1500)
-		# try:
-		# 	# await page.goto("https://www.tiktok.com", wait_until="domcontentloaded", timeout=60000)
-		# 	logger.info("Đã vào trang chủ TikTok")
-
-		# 	# db = MongoDB.get_db()
-		# 	config = db.tiktok_bot_configs.find_one({"bot_name": f"{settings.BOT_NAME}"})
-		# 	org_ids = config.get("org_id")
-
-		# 	print("Keywords to crawl:", org_ids)
-
-		# 	org_ids_int = [int(x) for x in org_ids]
-
-		# 	print("Org IDs as integers:", org_ids_int)
-
-		# 	keyword_col = db.keyword
-
-		# 	logger.info(f"Collection: {keyword_col.name}")
-		# 	logger.info(f"Total docs: {keyword_col.count_documents({})}")
-
-		# 	docs = keyword_col.find({
-		# 		"org_id": {"$in": org_ids_int}
-		# 	})
-
-		# 	keywords = []
-
-		# 	for doc in docs:
-		# 		doc["_id"] = str(doc["_id"])
-		# 		keywords.append(doc["keyword"])
-
-		# 	await CrawlerKeyword.crawler_keyword(context=context, page=page, keywords=keywords)
-
-		# finally:
-		# 	await page.close()
-		# 	await browser.close()
-
-async def run_test_1():
-	async with async_playwright() as p:
-		chrome_path = "C:/Program Files/Google/Chrome/Application/chrome.exe"  # đường dẫn Chrome trên Windows
-		browser = await p.chromium.launch(
-			headless=False,
-			executable_path=chrome_path,
-			args=["--disable-blink-features=AutomationControlled"]
-		)
-		context = await browser.new_context(storage_state="tiktok_profile.json")
-
-		await context.route("**/*", block_resources)
-		await crawl_tiktok_search_1(context, KEYWORDS, API_FILTERS)
-
-		# page = await context.new_page()
-		# # ======================
-		# # XHR COLLECTOR
-		# # ======================
-		# xhr_calls = defaultdict(dict)
-
-		# videos = []
-		
-		# async def on_request(req):
-		# 	if any(api in req.url for api in API_FILTERS):
-		# 		xhr_calls[req.url]["request"] = {
-		# 			"method": req.method,
-		# 			"headers": req.headers,
-		# 			"payload": req.post_data,
-		# 			"timestamp": datetime.now(timezone.utc).isoformat()
-		# 		}
-
-		# async def on_response(res):
-		# 	if any(api in res.url for api in API_FILTERS):
-		# 		try:
-		# 			body = await res.json()
-		# 		except:
-		# 			body = None
-
-		# 		xhr_calls[res.url]["response"] = {
-		# 			"status": res.status,
-		# 			"headers": res.headers,
-		# 			"body": body,
-		# 			"timestamp": datetime.now(timezone.utc).isoformat()
-		# 		}
-
-		# 		if body and body.get("status_code") == 0:
-		# 			items = body.get("item_list", [])
-		# 			videos.extend(items)
-
-		# page.on("request", on_request)
-		# page.on("response", on_response)
-
-		# # ======================
-		# # OPEN TIKTOK
-		# # ======================
-		# print("🚀 Open TikTok")
-		# await page.goto(TIKTOK_URL, timeout=60000)
-		# await page.wait_for_load_state("domcontentloaded")
-		# await human_delay()
-
-		# # ======================
-		# # SEARCH LOOP
-		# # ======================
-		# for keyword in KEYWORDS:
-		# 	print(f"🔍 Search keyword: {keyword}")
-
-		# 	unix_time = int(time.time())
-		# 	encoded = urllib.parse.quote(keyword)
-
-		# 	search_url = f"https://www.tiktok.com/search/video?q={encoded}&t={unix_time}"
-		# 	await page.goto(search_url, timeout=60000)
-
-		# 	await page.wait_for_timeout(8000)
-		# 	locator = page.locator("[id^='grid-item-container-']")
-
-		# 	await human_scroll(page, locator, times=2)
-		# 	await human_delay(1500, 2500)
-
-		# # ======================
-		# # SAVE RESULT
-		# # ======================
-
-		# print("Total Videos:", len(videos))
+		await crawl_tiktok_search_1(browser, context, KEYWORDS, API_FILTERS)
 
 
-		# results = []
-		# for item in videos:
-		# 	video_info = {
-		# 		"video_id": item.get("id"),
-		# 		"description": item.get("desc"),
-		# 		"pub_time": int(item.get("createTime")),
-		# 		"unique_id": item.get("author", {}).get("uniqueId", ""),
-		# 		"auth_id": item.get("author", {}).get("id", 0),
-		# 		"auth_name": item.get("author", {}).get("nickname", ""),
-		# 		"comments": item.get("stats", {}).get("commentCount", 0),
-		# 		"shares": item.get("stats", {}).get("shareCount", 0),
-		# 		"reactions": item.get("stats", {}).get("diggCount", 0),
-		# 		"favors": item.get("stats", {}).get("collectCount", 0),
-		# 		"views": item.get("stats", {}).get("playCount", 0)
-		# 	}
+# async def random_view_video(page, locator):
+# 	count = await locator.count()
+# 	if count == 0:
+# 		return
 
-		# 	data = TiktokPost().new(video_info)
-		# 	results.append(data)
+# 	if random.random() < 0.5:  # 50% khả năng click
+# 		index = random.randint(0, min(count - 1, 5))
+# 		video = locator.nth(index)
 
-		# print(f"✅ Parsed {len(results)} posts, posting to ES...")
+# 		await page.wait_for_timeout(random.randint(500, 1500))
+# 		await video.hover()
+# 		await page.wait_for_timeout(random.randint(800, 2000))
 
-		# with open("xhr_calls3.json", "w", encoding="utf-8") as f:
-		# 	json.dump(results, f, ensure_ascii=False, indent=2)
+# 		await video.click()
+# 		await page.wait_for_timeout(random.randint(14000, 38000))
 
-		# try:
-		# 	result = await postToESUnclassified(results)
-		# 	print("✅ Posted to ES:", result)
-		# except Exception as e:
-		# 	print("❌ Error posting to ES:", e)
-
-		# await human_delay(10000, 20000)
-
+# 		await page.go_back()
+# 		await page.wait_for_timeout(random.randint(2000, 4000))
+# 		locator = page.locator("[id^='grid-item-container-']")
 
 async def random_view_video(page, locator):
+    locator = page.locator("[id^='grid-item-container-']")
     count = await locator.count()
+
     if count == 0:
         return
 
-    if random.random() < 0.5:  # 50% khả năng click
+    if random.random() < 0.5:
         index = random.randint(0, min(count - 1, 5))
-        await locator.nth(index).click()
-        await page.wait_for_timeout(random.randint(4000, 8000))
+        video = locator.nth(index)
+
+        # Delay trước khi hover
+        await page.wait_for_timeout(random.randint(500, 1500))
+
+        # Hover
+        await video.hover()
+        await page.wait_for_timeout(random.randint(800, 2000))
+
+        # Click
+        await video.click()
+
+        # Xem video
+        await page.wait_for_timeout(random.randint(10000, 30000))
+
+        # Random scroll trong trang video
+        await page.mouse.wheel(0, random.randint(200, 600))
+        await page.wait_for_timeout(random.randint(1000, 3000))
+
+        # Quay lại
         await page.go_back()
+        await page.wait_for_load_state("domcontentloaded")
         await page.wait_for_timeout(random.randint(2000, 4000))
 
 async def crawl_tiktok_search(context, KEYWORDS, API_FILTERS):
@@ -465,202 +352,200 @@ async def crawl_tiktok_search(context, KEYWORDS, API_FILTERS):
 
 
 
+async def crawl_tiktok_search_1(browser, context, KEYWORDS, API_FILTERS):
 
+	videos_by_keyword = defaultdict(list)
+	seen_ids_by_keyword = defaultdict(set)
 
+	BATCH_MIN = 5
+	BATCH_MAX = 10
 
+	i = 0
+	total = len(KEYWORDS)
 
-async def crawl_tiktok_search_1(context, KEYWORDS, API_FILTERS):
+	while i < total:
 
-    videos_by_keyword = defaultdict(list)
-    seen_ids_by_keyword = defaultdict(set)
+		batch_size = random.randint(BATCH_MIN, BATCH_MAX)
+		batch_keywords = KEYWORDS[i:i+batch_size]
 
-    BATCH_MIN = 5
-    BATCH_MAX = 10
+		logger.info(f"🚀 New session with {len(batch_keywords)} keywords")
 
-    i = 0
-    total = len(KEYWORDS)
+		page = await context.new_page()
+		current_keyword = None
 
-    while i < total:
+		async def on_response(res):
+			nonlocal current_keyword
 
-        batch_size = random.randint(BATCH_MIN, BATCH_MAX)
-        batch_keywords = KEYWORDS[i:i+batch_size]
+			if not current_keyword:
+				return
 
-        logger.info(f"🚀 New session with {len(batch_keywords)} keywords")
+			if any(api in res.url for api in API_FILTERS):
+				try:
+					body = await res.json()
+				except:
+					return
 
-        page = await context.new_page()
-        current_keyword = None
+				if not body:
+					return
 
-        async def on_response(res):
-            nonlocal current_keyword
+				if body.get("status_code") == 0:
+					items = body.get("item_list", [])
 
-            if not current_keyword:
-                return
+					for item in items:
+						video_id = item.get("id")
+						if not video_id:
+							continue
 
-            if any(api in res.url for api in API_FILTERS):
-                try:
-                    body = await res.json()
-                except:
-                    return
+						if video_id not in seen_ids_by_keyword[current_keyword]:
+							seen_ids_by_keyword[current_keyword].add(video_id)
+							videos_by_keyword[current_keyword].append(item)
 
-                if not body:
-                    return
+		page.on("response", on_response)
 
-                if body.get("status_code") == 0:
-                    items = body.get("item_list", [])
+		await page.goto("https://www.tiktok.com", timeout=60000)
+		await page.wait_for_load_state("domcontentloaded")
+		await page.wait_for_timeout(random.randint(4000, 7000))
 
-                    for item in items:
-                        video_id = item.get("id")
-                        if not video_id:
-                            continue
+		for keyword in batch_keywords:
 
-                        if video_id not in seen_ids_by_keyword[current_keyword]:
-                            seen_ids_by_keyword[current_keyword].add(video_id)
-                            videos_by_keyword[current_keyword].append(item)
+			logger.info(f"Search keyword: {keyword}")
 
-        page.on("response", on_response)
+			current_keyword = keyword
+			videos_by_keyword[keyword] = []
+			seen_ids_by_keyword[keyword] = set()
 
-        await page.goto("https://www.tiktok.com", timeout=60000)
-        await page.wait_for_load_state("domcontentloaded")
-        await page.wait_for_timeout(random.randint(4000, 7000))
+			unix_time = int(time.time() * 1000)
+			encoded = urllib.parse.quote(keyword)
+			search_url = f"https://www.tiktok.com/search/video?q={encoded}&t={unix_time}"
 
-        for keyword in batch_keywords:
+			await page.goto(search_url, timeout=60000)
+			await page.wait_for_timeout(random.randint(6000, 9000))
 
-            logger.info(f"Search keyword: {keyword}")
+			locator = page.locator("[id^='grid-item-container-']")
 
-            current_keyword = keyword
-            videos_by_keyword[keyword] = []
-            seen_ids_by_keyword[keyword] = set()
+			await human_scroll(page, locator, times=random.randint(1, 4))
+			await random_view_video(page, locator)
 
-            unix_time = int(time.time() * 1000)
-            encoded = urllib.parse.quote(keyword)
-            search_url = f"https://www.tiktok.com/search/video?q={encoded}&t={unix_time}"
+			videos = videos_by_keyword[keyword]
+			logger.info(f"Total Videos collected: {len(videos)}")
 
-            await page.goto(search_url, timeout=60000)
-            await page.wait_for_timeout(random.randint(6000, 9000))
+			results = []
+			now_ts = int(time.time())
+			days_ago = now_ts - 7 * 24 * 60 * 60
 
-            locator = page.locator("[id^='grid-item-container-']")
+			for item in videos:
+				try:
+					pub_time = int(item.get("createTime", 0))
+					if pub_time < days_ago:
+						continue
 
-            await human_scroll(page, locator, times=random.randint(1, 4))
-            await random_view_video(page, locator)
+					video_info = {
+						"keyword": keyword,
+						"video_id": item.get("id"),
+						"description": item.get("desc"),
+						"pub_time": pub_time,
+						"unique_id": item.get("author", {}).get("uniqueId", ""),
+						"auth_id": item.get("author", {}).get("id", 0),
+						"auth_name": item.get("author", {}).get("nickname", ""),
+						"comments": item.get("stats", {}).get("commentCount", 0),
+						"shares": item.get("stats", {}).get("shareCount", 0),
+						"reactions": item.get("stats", {}).get("diggCount", 0),
+						"favors": item.get("stats", {}).get("collectCount", 0),
+						"views": item.get("stats", {}).get("playCount", 0)
+					}
 
-            videos = videos_by_keyword[keyword]
-            logger.info(f"Total Videos collected: {len(videos)}")
+					data = TiktokPost().new(video_info)
+					results.append(data)
 
-            results = []
-            now_ts = int(time.time())
-            days_ago = now_ts - 7 * 24 * 60 * 60
+				except Exception as e:
+					logger.error(f"Parse error: {e}")
 
-            for item in videos:
-                try:
-                    pub_time = int(item.get("createTime", 0))
-                    if pub_time < days_ago:
-                        continue
+			logger.info(f"Parsed {len(results)} posts")
 
-                    video_info = {
-                        "keyword": keyword,
-                        "video_id": item.get("id"),
-                        "description": item.get("desc"),
-                        "pub_time": pub_time,
-                        "unique_id": item.get("author", {}).get("uniqueId", ""),
-                        "auth_id": item.get("author", {}).get("id", 0),
-                        "auth_name": item.get("author", {}).get("nickname", ""),
-                        "comments": item.get("stats", {}).get("commentCount", 0),
-                        "shares": item.get("stats", {}).get("shareCount", 0),
-                        "reactions": item.get("stats", {}).get("diggCount", 0),
-                        "favors": item.get("stats", {}).get("collectCount", 0),
-                        "views": item.get("stats", {}).get("playCount", 0)
-                    }
+			if results:
+				try:
+					result = await postToESUnclassified(results)
+					logger.info(f"Posted {len(results)} posts to API MASTER: {result.get('status')}")
+				except Exception as e:
+					logger.error(f"Error posting to API MASTER: {e}")
 
-                    data = TiktokPost().new(video_info)
-                    results.append(data)
+			current_keyword = None
+			time_sleep = random.randint(60, 120)
+			logger.info(f"Wating {time_sleep} second")
+			await asyncio.sleep(time_sleep)
 
-                except Exception as e:
-                    logger.error(f"Parse error: {e}")
+		logger.info("🛑 Closing page for rest period")
+		await page.close()
 
-            logger.info(f"Parsed {len(results)} posts")
+		rest_time = random.randint(180, 360)
+		logger.info(f"😴 Resting {rest_time}s before next session")
+		await asyncio.sleep(rest_time)
 
-            if results:
-                try:
-                    result = await postToESUnclassified(results)
-                    logger.info(f"Posted {len(results)} posts to API MASTER: {result.get('status')}")
-                except Exception as e:
-                    logger.error(f"Error posting to API MASTER: {e}")
+		i += batch_size
 
-            current_keyword = None
-            await asyncio.sleep(random.randint(60, 120))
-
-        logger.info("🛑 Closing page for rest period")
-        await page.close()
-
-        rest_time = random.randint(180, 360)
-        logger.info(f"😴 Resting {rest_time}s before next session")
-        await asyncio.sleep(rest_time)
-
-        i += batch_size
-
-    logger.info("🎉 Done crawling all keywords")
+	logger.info("🎉 Done crawling all keywords")
 
 
 # lưu cấu hình ngủ trong ngày
 sleep_config = {
-    "sleep_start": None,
-    "sleep_end": None,
-    "date": None
+	"sleep_start": None,
+	"sleep_end": None,
+	"date": None
 }
 
 def generate_today_sleep_time():
-    today = datetime.now().date()
+	today = datetime.now().date()
 
-    # random giờ ngủ 23:00 – 00:30
-    sleep_hour = random.choice([23, 0])
-    sleep_minute = random.randint(0, 59) if sleep_hour == 23 else random.randint(0, 30)
+	# random giờ ngủ 23:00 – 00:30
+	sleep_hour = random.choice([23, 0])
+	sleep_minute = random.randint(0, 59) if sleep_hour == 23 else random.randint(0, 30)
 
-    # random giờ thức 05:30 – 06:30
-    wake_hour = 5 if random.random() < 0.5 else 6
-    wake_minute = random.randint(30, 59) if wake_hour == 5 else random.randint(0, 30)
+	# random giờ thức 05:30 – 06:30
+	wake_hour = 5 if random.random() < 0.5 else 6
+	wake_minute = random.randint(30, 59) if wake_hour == 5 else random.randint(0, 30)
 
-    sleep_start = dtime(sleep_hour, sleep_minute)
-    sleep_end = dtime(wake_hour, wake_minute)
+	sleep_start = dtime(sleep_hour, sleep_minute)
+	sleep_end = dtime(wake_hour, wake_minute)
 
-    sleep_config["sleep_start"] = sleep_start
-    sleep_config["sleep_end"] = sleep_end
-    sleep_config["date"] = today
+	sleep_config["sleep_start"] = sleep_start
+	sleep_config["sleep_end"] = sleep_end
+	sleep_config["date"] = today
 
-    logger.info(f"🌙 Sleep window today: {sleep_start} → {sleep_end}")
+	logger.info(f"🌙 Sleep window today: {sleep_start} → {sleep_end}")
 
 def is_sleep_time():
-    now = datetime.now()
+	now = datetime.now()
 
-    if sleep_config["date"] != now.date():
-        generate_today_sleep_time()
+	if sleep_config["date"] != now.date():
+		generate_today_sleep_time()
 
-    start = sleep_config["sleep_start"]
-    end = sleep_config["sleep_end"]
-    current = now.time()
+	start = sleep_config["sleep_start"]
+	end = sleep_config["sleep_end"]
+	current = now.time()
 
-    # xử lý trường hợp ngủ qua ngày (23h → 6h)
-    if start > end:
-        return current >= start or current < end
-    else:
-        return start <= current < end
+	# xử lý trường hợp ngủ qua ngày (23h → 6h)
+	if start > end:
+		return current >= start or current < end
+	else:
+		return start <= current < end
 
 async def sleep_until_wakeup():
-    now = datetime.now()
-    wake_time = sleep_config["sleep_end"]
+	now = datetime.now()
+	wake_time = sleep_config["sleep_end"]
 
-    wake_datetime = now.replace(
-        hour=wake_time.hour,
-        minute=wake_time.minute,
-        second=0,
-        microsecond=0
-    )
+	wake_datetime = now.replace(
+		hour=wake_time.hour,
+		minute=wake_time.minute,
+		second=0,
+		microsecond=0
+	)
 
-    if now.time() >= wake_time:
-        wake_datetime += timedelta(days=1)
+	if now.time() >= wake_time:
+		wake_datetime += timedelta(days=1)
 
-    seconds = (wake_datetime - now).total_seconds()
-    logger.info(f"😴 Sleeping {seconds/3600:.2f} hours...")
-    await asyncio.sleep(seconds)
+	seconds = (wake_datetime - now).total_seconds()
+	logger.info(f"😴 Sleeping {seconds/3600:.2f} hours...")
+	await asyncio.sleep(seconds)
 
 async def schedule():
 	MINUTE = settings.DELAY
@@ -672,7 +557,7 @@ async def schedule():
 				continue
 			
 			if settings.DEBUG:
-				await run_test_1()
+				await run_test()
 			else:
 				await run_with_gpm()
 
