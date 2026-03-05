@@ -13,6 +13,9 @@ from src.config.logging import setup_logging
 import logging
 from collections import defaultdict
 
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
 # from src.utils import delay
 from src.utils.scroll_utils import human_scroll
 from src.utils.delay_utils import delay
@@ -36,6 +39,8 @@ SEARCH_API = "/api/search/item/full/"
 
 db = MongoDB.get_db()
 bot_config = db.tiktok_bot_configs
+
+now = datetime.now(ZoneInfo("Asia/Ho_Chi_Minh"))
 
 async def run_with_gpm():
 	
@@ -101,7 +106,7 @@ async def run_with_gpm():
 
 		# Stop GPM profile
 		try:
-			requests.get(f"{GPM_API}/profiles/stop/{PROFILE_ID}")
+			requests.get(f"{GPM_API}/profiles/close/{PROFILE_ID}")
 			logger.info("GPM profile stopped")
 		except Exception as e:
 			logger.error(f"Failed to stop GPM profile: {e}")
@@ -260,10 +265,18 @@ async def crawl_tiktok_search_1(browser, context, KEYWORDS, API_FILTERS):
 	logger.info("🎉 Done crawling all keywords")
 
 async def schedule():
-	MINUTE = settings.DELAY
-	INTERVAL = MINUTE * 60
+	config = db.tiktok_bot_configs.find_one({"bot_name": settings.BOT_NAME})
+
+	if not config:
+		raise ValueError("Bot config not found")
+	
+	sleep = config.get("sleep", 5)
+	logger.info(f"Sleep config in database: {sleep} minutes")
+
+	INTERVAL = sleep * 60
 	while True:
 		try:
+			logger.info(now)
 			sleep_manager = SleepManager(logger)
 			if sleep_manager.is_sleep_time():
 				await sleep_manager.sleep_until_wakeup()
@@ -274,9 +287,9 @@ async def schedule():
 			else:
 				await run_with_gpm()
 
-			logger.info(f"=== Run completed. Sleeping for {MINUTE} minutes ===")
+			logger.info(f"=== Run completed. Sleeping for {sleep} minutes ===")
 		except Exception as e:
-			logger.exception("Unhandled exception in run()")
+			logger.exception(f"Unhandled exception in run(): {e}")
 
 		await asyncio.sleep(INTERVAL)
 
