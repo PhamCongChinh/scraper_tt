@@ -8,7 +8,6 @@ import urllib
 from src.api import postToESUnclassified
 from src.parsers.video_parser import TiktokPost
 from src.db.mongo import MongoDB
-# from src.crawler_keywords import CrawlerKeyword
 from src.config.logging import setup_logging
 import logging
 from collections import defaultdict
@@ -16,7 +15,6 @@ from collections import defaultdict
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-# from src.utils import delay
 from src.utils.scroll_utils import human_scroll
 from src.utils.delay_utils import delay
 from src.utils.browser_actions import random_view_video
@@ -187,7 +185,7 @@ async def crawl_tiktok_search_1(browser, context, KEYWORDS, API_FILTERS):
 
 		for keyword in batch_keywords:
 
-			logger.info(f"Search keyword: {keyword}")
+			logger.info(f"[{keyword}] Search keyword: {keyword}")
 
 			current_keyword = keyword
 			videos_by_keyword[keyword] = []
@@ -206,7 +204,7 @@ async def crawl_tiktok_search_1(browser, context, KEYWORDS, API_FILTERS):
 			await random_view_video(page)
 
 			videos = videos_by_keyword[keyword]
-			logger.info(f"Total Videos collected: {len(videos)}")
+			logger.info(f"[{keyword}] Total videos collected: {len(videos)}")
 
 			results = []
 			now_ts = int(time.time())
@@ -237,23 +235,22 @@ async def crawl_tiktok_search_1(browser, context, KEYWORDS, API_FILTERS):
 					results.append(data)
 
 				except Exception as e:
-					logger.error(f"Parse error: {e}")
-
-			logger.info(f"Parsed {len(results)} posts")
+					logger.error(f"[{keyword}] Parse error: {e}")
 
 			if results:
 				try:
 					result = await postToESUnclassified(results)
-					logger.info(f"Posted {len(results)} posts to API MASTER: {result.get('status')}")
+					logger.info(f"[{keyword}] Posted {len(results)} posts to API MASTER: {result.get('status')}")
 				except Exception as e:
-					logger.error(f"Error posting to API MASTER: {e}")
+					logger.error(f"[{keyword}] Error posting to API MASTER: {e}")
 
 			current_keyword = None
 			time_sleep = random.randint(60, 120)
-			logger.info(f"Wating {time_sleep} second")
+			logger.info(f"Waiting {time_sleep} seconds for the next keyword ...")
 			await asyncio.sleep(time_sleep)
 
-		logger.info("🛑 Closing page for rest period")
+		logger.info(f"[{current_keyword}] 🛑 Closing page for rest period")
+
 		await page.close()
 
 		rest_time = random.randint(300, 600)
@@ -276,7 +273,6 @@ async def schedule():
 	INTERVAL = sleep * 60
 	while True:
 		try:
-			logger.info(now)
 			sleep_manager = SleepManager(logger)
 			if sleep_manager.is_sleep_time():
 				await sleep_manager.sleep_until_wakeup()

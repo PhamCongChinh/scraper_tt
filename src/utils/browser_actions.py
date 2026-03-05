@@ -19,6 +19,11 @@ async def random_view_video(
 
     if count == 0:
         return
+    
+    # ===== Random scroll trước khi chọn =====
+    if random.random() < 0.7:
+        await page.mouse.wheel(0, random.randint(200, 700))
+        await page.wait_for_timeout(random.randint(800, 2000))
 
     # 60% xác suất mới tương tác
     if random.random() >= click_probability:
@@ -33,12 +38,23 @@ async def random_view_video(
 
     # Di chuột tới vị trí random trong bounding box
     box = await video.bounding_box()
-    if box:
-        x = box["x"] + random.randint(10, int(box["width"] - 10))
-        y = box["y"] + random.randint(10, int(box["height"] - 10))
+    # if box:
+    #     x = box["x"] + random.randint(10, int(box["width"] - 10))
+    #     y = box["y"] + random.randint(10, int(box["height"] - 10))
 
-        await page.mouse.move(x, y, steps=random.randint(10, 25))
-        await page.wait_for_timeout(random.randint(500, 1500))
+    #     await page.mouse.move(x, y, steps=random.randint(10, 25))
+    #     await page.wait_for_timeout(random.randint(500, 1500))
+
+    if box:
+        start_x = box["x"] + random.randint(5, int(box["width"] - 5))
+        start_y = box["y"] + random.randint(5, int(box["height"] - 5))
+
+        # move nhiều step random
+        for _ in range(random.randint(2, 4)):
+            x = start_x + random.randint(-30, 30)
+            y = start_y + random.randint(-30, 30)
+            await page.mouse.move(x, y, steps=random.randint(5, 15))
+            await page.wait_for_timeout(random.randint(200, 600))
 
     # Hover
     await video.hover()
