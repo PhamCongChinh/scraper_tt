@@ -171,7 +171,7 @@ async def crawl_tiktok_search_1(browser, context, KEYWORDS, API_FILTERS):
 
 		page.on("response", on_response)
 
-		await page.goto("https://www.tiktok.com", timeout=60000)
+		await page.goto("https://www.tiktok.com", wait_until="domcontentloaded")
 		await page.wait_for_load_state("domcontentloaded")
 		await page.wait_for_timeout(random.randint(4000, 7000))
 
@@ -195,7 +195,7 @@ async def crawl_tiktok_search_1(browser, context, KEYWORDS, API_FILTERS):
 			encoded = urllib.parse.quote(keyword)
 			search_url = f"https://www.tiktok.com/search/video?q={encoded}&t={unix_time}"
 
-			await page.goto(search_url, timeout=60000)
+			await page.goto(search_url, wait_until="domcontentloaded")
 			await page.wait_for_timeout(random.randint(6000, 9000))
 
 			locator = page.locator("[id^='grid-item-container-']")
