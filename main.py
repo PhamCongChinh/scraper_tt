@@ -253,7 +253,7 @@ async def crawl_tiktok_search_1(browser, context, KEYWORDS, API_FILTERS):
 
 		await page.close()
 
-		rest_time = random.randint(300, 600)
+		rest_time = random.randint(600, 900)
 		logger.info(f"😴 Resting {rest_time}s before next session")
 		await asyncio.sleep(rest_time)
 
