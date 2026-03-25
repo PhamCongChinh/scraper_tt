@@ -1,5 +1,6 @@
 import asyncio
 from datetime import datetime, time as dtime, timedelta
+import json
 import random
 import time
 import requests
@@ -25,12 +26,17 @@ setup_logging()
 logger = logging.getLogger(__name__)
 
 from src.config.settings import settings
+from src.db.postgres import PostgresDB
+postgresDB = PostgresDB()
 
 TIKTOK_URL = "https://www.tiktok.com"
 KEYWORDS = ["Xã Xuân Giang", "Hà Nội"]
 
 API_FILTERS = [
 	"/api/search/item/full/",
+]
+API_COMMENT = [
+    "/api/comment/list/",  # API comment của TikTok
 ]
 
 SEARCH_API = "/api/search/item/full/"
@@ -89,7 +95,7 @@ async def run_with_gpm():
 				keywords.append(doc["keyword"])
 
 			await delay(1000, 2000)
-			await crawl_tiktok_search_1(browser, context, keywords, API_FILTERS)
+			await crawl_tiktok_search(browser, context, keywords, API_FILTERS)
 
 	except Exception as e:
 		logger.exception(f"Error in run_with_gpm(): {e}")
@@ -119,9 +125,123 @@ async def run_test():
 		)
 		context = await browser.new_context(storage_state="tiktok_profile.json")
 
-		await crawl_tiktok_search_1(browser, context, KEYWORDS, API_FILTERS)
+		await crawl_tiktok_comment(context=context)
 
-async def crawl_tiktok_search_1(browser, context, KEYWORDS, API_FILTERS):
+		# await crawl_tiktok_search(browser, context, KEYWORDS, API_FILTERS)
+
+async def crawl_tiktok_comment(context):
+	page = await context.new_page()
+	await postgresDB.connect()
+	posts = await postgresDB.fetch_posts(5)
+	for i, row in enumerate(posts, 1):
+		unix_time = int(time.time() * 1000)
+		print(row.get("url"))
+		url = row.get("url")
+
+		await page.goto(url, wait_until="domcontentloaded")
+		await page.wait_for_timeout(random.randint(60, 90))
+		comments_by_video = {}
+		async def on_response(res):
+			if any(api in res.url for api in API_COMMENT):
+				try:
+					body = await res.json()
+					print(body)
+				except:
+					return
+				if not body:
+					return
+
+				comments = body.get("comments", [])
+
+				# lấy video_id từ request URL
+				import re
+				# match = re.search(r"aweme_id=(\d+)", url)
+				match = re.search(r"/video/(\d+)", url)
+				video_id = match.group(1) if match else None
+
+				if not video_id:
+					return
+				
+				if video_id not in comments_by_video:
+					comments_by_video[video_id] = []
+
+				for c in comments:
+					comment_id = c.get("cid")
+					text = c.get("text")
+					aweme_id = c.get("aweme_id") # subjectid
+					create_time = c.get("create_time") #pubtime
+					digg_count = c.get("digg_count")
+					title = c.get("share_info").get("title")
+					description = c.get("share_info").get("desc")
+					content = c.get("share_info").get("desc")
+					url = c.get("share_info").get("url")
+					auth_id = c.get("share_info").get("uid")
+					auth_name = c.get("share_info").get("nickname")
+					unique_id = c.get("share_info").get("unique_id")
+
+
+
+					comments_by_video[video_id].append({
+						"comment_id": comment_id,
+						"text": text
+					})
+
+
+				print(f"\n🎬 VIDEO ID: {video_id}")
+				print(f"💬 TOTAL COMMENTS FETCHED: {len(comments)}")
+				print("=" * 50)
+
+				for i, c in enumerate(comments, 1):
+					comment_id = c.get("cid")
+					text = c.get("text")
+					user = c.get("user", {}).get("nickname")
+
+					# comments_by_video[]
+
+					print(f"{i}. 👤 {user}")
+					print(f"   💬 {text}")
+					print(f"   🆔 {comment_id}")
+					print("-" * 50)
+
+				# if not video_id:
+				# 	return
+
+				# if video_id not in comments_by_video:
+				# 	comments_by_video[video_id] = []
+
+				# for c in comments:
+				# 	comment_id = c.get("cid")
+				# 	text = c.get("text")
+
+				# 	comments_by_video[video_id].append({
+				# 		"comment_id": comment_id,
+				# 		"text": text
+				# 	})
+
+		
+		page.on("response", on_response)
+		await asyncio.sleep(random.randint(10, 20))
+		await close_popup_if_any(page)
+		await asyncio.sleep(random.randint(10, 20))
+		await page.click('[data-e2e="comment-icon"]')
+
+		with open("comments.json", "w", encoding="utf-8") as f:
+			json.dump(comments_by_video, f, ensure_ascii=False, indent=2)
+
+		await asyncio.sleep(random.randint(60, 90))
+
+	await postgresDB.close()
+	rest_time = random.randint(600, 900)
+	logger.info(f"😴 Resting {rest_time}s before next session")
+
+
+async def close_popup_if_any(page):
+    try:
+        await page.locator('div[class*="DivXMarkWrapper"]').click(timeout=2000)
+    except:
+        pass
+
+async def crawl_tiktok_search(browser, context, KEYWORDS, API_FILTERS):
 
 	videos_by_keyword = defaultdict(list)
 	seen_ids_by_keyword = defaultdict(set)
@@ -274,9 +394,9 @@ async def schedule():
 	while True:
 		try:
 			sleep_manager = SleepManager(logger)
-			if sleep_manager.is_sleep_time():
-				await sleep_manager.sleep_until_wakeup()
-				continue
+			# if sleep_manager.is_sleep_time():
+			# 	await sleep_manager.sleep_until_wakeup()
+			# 	continue
 			
 			if settings.DEBUG:
 				await run_test()
